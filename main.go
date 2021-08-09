@@ -24,6 +24,7 @@ back to originating address on specified Port.
 import (
 	"encoding/binary"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -35,12 +36,21 @@ const (
 	PacketSize    = PortFieldSize + UUIDSize
 )
 
+var version = "undefined"
+
 var (
 	bindReceiver = flag.String("bind-receiver", "0.0.0.0:4589", "socket address for request datagrams")
 	bindSender   = flag.String("bind-sender", "0.0.0.0:4590", "socket address for response datagrams")
+	showVersion  = flag.Bool("version", false, "show program version and exit")
 )
 
 func run() int {
+	flag.Parse()
+	if *showVersion {
+		fmt.Println(version)
+		return 0
+	}
+
 	rxAddr, err := net.ResolveUDPAddr("udp", *bindReceiver)
 	if err != nil {
 		log.Fatalf("Can't resolve receiver bind address: %v", err)
