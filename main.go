@@ -41,6 +41,7 @@ var version = "undefined"
 var (
 	bindReceiver = flag.String("bind-receiver", "0.0.0.0:4589", "socket address for request datagrams")
 	bindSender   = flag.String("bind-sender", "0.0.0.0:0", "socket address for response datagrams")
+	reuseSocket  = flag.Bool("reuse-socket", false, "reuse response socket")
 	showVersion  = flag.Bool("version", false, "show program version and exit")
 )
 
@@ -67,6 +68,29 @@ func run() int {
 	}
 	defer rxSocket.Close()
 
+	var responseSender func(*net.UDPAddr, []byte)
+	if *reuseSocket {
+		txSocket, err := net.ListenUDP("udp", txAddr)
+		if err != nil {
+			log.Fatalf("Can't bind receiver socket: %v", err)
+		}
+		defer txSocket.Close()
+
+		responseSender = func(peerAddress *net.UDPAddr, uuid []byte) {
+			writeResponse(txSocket, peerAddress, uuid)
+		}
+	} else {
+		responseSender = func(peerAddress *net.UDPAddr, uuid []byte) {
+			txSocket, err := net.ListenUDP("udp", txAddr)
+			if err != nil {
+				log.Printf("Can't bind sender socket: %v", err)
+			}
+			defer txSocket.Close()
+
+			writeResponse(txSocket, peerAddress, uuid)
+		}
+	}
+
 	buf := make([]byte, PacketSize)
 	for {
 		n, peerAddress, err := rxSocket.ReadFromUDP(buf)
@@ -85,20 +109,16 @@ func run() int {
 		uuid := buf[PortFieldSize:]
 		peerAddress.Port = int(dstPort)
 
-		func() {
-			txSocket, err := net.ListenUDP("udp", txAddr)
-			if err != nil {
-				log.Printf("Can't bind sender socket: %v", err)
-			}
-			defer txSocket.Close()
-
-			_, err = txSocket.WriteToUDP(uuid, peerAddress)
-			if err != nil {
-				log.Printf("UDP response send failed: %v", err)
-			}
-		}()
+		responseSender(peerAddress, uuid)
 	}
 	return 0
+}
+
+func writeResponse(txSocket *net.UDPConn, peerAddress *net.UDPAddr, uuid []byte) {
+	_, err := txSocket.WriteToUDP(uuid, peerAddress)
+	if err != nil {
+		log.Printf("UDP response send failed: %v", err)
+	}
 }
 
 func main() {
