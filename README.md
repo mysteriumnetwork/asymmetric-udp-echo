@@ -34,7 +34,7 @@ After=syslog.target network.target
 Type=simple
 User=nobody
 Group=nogroup
-ExecStart=/usr/local/bin/asymmetric-udp-echo -bind-receiver FIRST_IP:4589 -bind-sender SECOND_IP:4590
+ExecStart=/usr/local/bin/asymmetric-udp-echo -bind-receiver FIRST_IP:4589 -bind-sender SECOND_IP:0
 Restart=always
 KillMode=process
 TimeoutStartSec=5
@@ -60,7 +60,9 @@ Usage of asymmetric-udp-echo:
   -bind-receiver string
     	socket address for request datagrams (default "0.0.0.0:4589")
   -bind-sender string
-    	socket address for response datagrams (default "0.0.0.0:4590")
+    	socket address for response datagrams (default "0.0.0.0:0")
+  -reuse-socket
+    	reuse response socket
   -version
     	show program version and exit
 ```
